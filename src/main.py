@@ -40,12 +40,6 @@ def main():
             print("\nProgram terminated by user.")
             sys.exit(1)
 
-    secondValidation = validateRouterConfig(router_info)
-    if secondValidation:
-        pass
-    else:
-        print("Please correct these errors above to continue")
-
 
 if __name__ == "__main__":
     main()
