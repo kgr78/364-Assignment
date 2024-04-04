@@ -12,8 +12,6 @@ class RouterInterface:
         self._time_out = 1
 
     def init_sockets(self):
-        """
-        """
         try:
             for port in self._input_ports:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

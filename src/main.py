@@ -1,5 +1,5 @@
 from configReader import *
-from ripprotocol import RIPProtocol
+from socketBinder import *
 import sys
 
 
@@ -32,7 +32,8 @@ def main():
         try:
             router_id, input_ports, outputs = run_checks_and_get_values(config_file)
             router_info[router_id] = {'input_ports': input_ports, 'outputs': outputs}
-            router = RIPProtocol(router_id, input_ports, outputs)
+            RouterInterface(input_ports)
+            print(f"Router {router_id} input ports: {input_ports} bound successfully.")
         except FileNotFoundError:
             print(f"Error: Configuration file '{config_file}' not found.")
             sys.exit(1)

@@ -1,6 +1,3 @@
-from routerinterface import RouterInterface
-
-
 class RIPProtocol:
     def __init__(self, router_id, input_ports, outputs):
         self._router_id = router_id
@@ -18,6 +15,3 @@ class RIPProtocol:
 
     def get_outputs(self):
         return self.outputs
-
-    def init_Router_Interface(self, input_ports):
-        self._interface = RouterInterface(input_ports)
