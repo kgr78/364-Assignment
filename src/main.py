@@ -15,8 +15,6 @@ def run_checks_and_get_values(config_file):
 
 
 def main():
-    config = ConfigReader()
-
     if len(sys.argv) != 1:
         print("Usage: python main.py")
         sys.exit(1)
