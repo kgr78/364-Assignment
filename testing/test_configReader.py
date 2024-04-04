@@ -80,7 +80,7 @@ def test_invalid_router_id():
 def test_invalid_output_router_id():
     config = ConfigReader()
     invalidConfigFile = {'router-id': '1', 'input-ports': '6000, 6001, 6002', 'outputs': '6003-1-64001, 6004-8-7, '
-                                                                                             '6005-5-6'}
+                                                                                         '6005-5-6'}
     config.config = invalidConfigFile
     try:
         config.validateConfig()
@@ -111,5 +111,9 @@ def test_correct_outputs():
     assert config.getOutputs() == [(6003, 1, 2), (6004, 8, 7), (6005, 5, 6)]
 
 
-
+def test_get_router_id():
+    config = ConfigReader()
+    config.parseConfigFile('../configFile/config1.txt')
+    config.validateConfig()
+    assert config.getRouterId() == 1
 
