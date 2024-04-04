@@ -1,3 +1,4 @@
+from configReader import *
 from configReader import ConfigReader
 from ripprotocol import RIPProtocol
 import sys

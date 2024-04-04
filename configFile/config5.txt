@@ -1,0 +1,3 @@
+router-id 5
+input-ports 6013, 6014
+output-ports 6012-1-6, 6015-2-4
