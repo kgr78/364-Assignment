@@ -22,4 +22,3 @@ class RIPProtocol:
 
     def init_Router_Interface(self, input_ports):
         self._interface = RouterInterface(input_ports)
-        print("##################################{}##################################".format(RouterInterface(input_ports)))
