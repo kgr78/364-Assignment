@@ -1,3 +1,8 @@
+def validateRouterConfig(router_dic):
+    validate = False
+    return validate
+
+
 class ConfigReader:
     def __init__(self):
         self.config = {}

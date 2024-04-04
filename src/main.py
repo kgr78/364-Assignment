@@ -1,15 +1,8 @@
-from configReader import ConfigReader
+from configReader import *
 import sys
 
 
-def get_config_file():
-    config_file = input("Enter the configuration file name: ")
-    return config_file
-
-
-def run_checks_and_get_values():
-    config_file = get_config_file()
-
+def run_checks_and_get_values(config_file):
     parser = ConfigReader()
     parser.parseConfigFile(config_file)
     parser.validateConfig()
@@ -22,14 +15,36 @@ def run_checks_and_get_values():
 
 
 def main():
-    try:
-        router_id, input_ports, outputs = run_checks_and_get_values()
-        print(f"Router ID: {router_id}")
-        print(f"Input Ports: {input_ports}")
-        print(f"Outputs: {outputs}")
-    except KeyboardInterrupt:
-        print("\nProgram terminated by user.")
+    config = ConfigReader()
+
+    if len(sys.argv) != 1:
+        print("Usage: python main.py")
         sys.exit(1)
+
+    num_routers = 7
+    config_files = []
+    for i in range(1, num_routers + 1):
+        config_file = input(f"Enter config file name for router {i}: ")
+        config_files.append(config_file)
+
+    print("\nChecking configurations...\n")
+    router_info = {}
+    for config_file in config_files:
+        try:
+            router_id, input_ports, outputs = run_checks_and_get_values(config_file)
+            router_info[router_id] = {'input_ports': input_ports, 'outputs': outputs}
+        except FileNotFoundError:
+            print(f"Error: Configuration file '{config_file}' not found.")
+            sys.exit(1)
+        except KeyboardInterrupt:
+            print("\nProgram terminated by user.")
+            sys.exit(1)
+
+    secondValidation = validateRouterConfig(router_info)
+    if secondValidation:
+        pass
+    else:
+        print("Please correct these errors above to continue")
 
 
 if __name__ == "__main__":
