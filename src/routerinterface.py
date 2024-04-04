@@ -2,13 +2,15 @@ import socket
 import select
 
 LOCAL_HOST = "127.0.0.1"
+
+
 class RouterInterface:
-    
+
     def __init__(self, input_ports):
         self._input_ports = input_ports
         self._sockets = {}
         self._time_out = 1
-    
+
     def init_sockets(self):
         """
         """
@@ -18,13 +20,17 @@ class RouterInterface:
                 sock.bind((LOCAL_HOST, port))
                 self._sockets[port] = sock
         except socket.error as error:
-            print("Error: Failed to create socket",error)
+            print("Error: Failed to create socket", error)
+
     def get_sockets(self):
         return self._sockets
+
     def get_num_sockets(self):
         return len(self._sockets)
+
     def get_num_ports(self):
         return len(self._input_ports)
+
     def receive(self):
         """
         Returns:
@@ -33,14 +39,15 @@ class RouterInterface:
         try:
             sockets = list(self._sockets.values())
             print(f"################list of sockets:{sockets}################")
-            readable_sockets,_,_ = select.select(sockets, [], [], self._time_out)
+            readable_sockets, _, _ = select.select(sockets, [], [], self._time_out)
             data = []
             for socket in readable_sockets:
                 data.append(socket.recv(1024))
             return data
         except socket.error as error:
-            print("Error: Failed to receive data",error)
+            print("Error: Failed to receive data", error)
             return []
+
     def send(self, data, port):
         """
         Paramaters:
@@ -55,10 +62,10 @@ class RouterInterface:
             sending_socket = self._sockets[port]
             sending_socket.sendto(data, (LOCAL_HOST, port))
         except (ValueError, socket.error) as error:
-            print("Error: Failed to send data",error)
+            print("Error: Failed to send data", error)
         finally:
             sending_socket.close()
-    
+
     def __str__(self):
         sockets_info = ""
         for port, sock in self._sockets.items():

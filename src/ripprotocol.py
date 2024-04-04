@@ -10,7 +10,6 @@ class RIPProtocol:
         print("##################################{input_ports}##################################".format(input_ports=input_ports))
         self.init_Router_Interface(input_ports)
 
-
     def get_router_id(self):
         return self.router_id
 
