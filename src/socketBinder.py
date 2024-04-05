@@ -62,6 +62,7 @@ class RouterInterface:
             print(f"The port:{port} for sending packet does not exist")
         except socket.error as error:
             print("Error: Unable to send data with the socket\n" + error)
+
     def __str__(self):
         sockets_info = ""
         for port, sock in self._sockets.items():

@@ -1,17 +1,30 @@
+import socket
+import select
+
+
 class RIPProtocol:
-    def __init__(self, router_id, input_ports, outputs):
-        self._router_id = router_id
-        self._input_ports = input_ports
-        self._outputs_ports = outputs
-        # Set Up
-        print("##################################{input_ports}##################################".format(input_ports=input_ports))
-        self.init_Router_Interface(input_ports)
+    def __init__(self, router_info):
+        self.router_info = router_info
 
-    def get_router_id(self):
-        return self.router_id
+    def start_listening(self):
+        while True:
+            for router_id, router_data in self.router_info.items():
+                input_ports = router_data['input_ports']
+                for input_port in input_ports:
+                    self.receive_data(input_port)
 
-    def get_input_ports(self):
-        return self.input_ports
+    def receive_data(self, input_port):
+        try:
+            sock = self.router_info[input_port]['socket']  # Get the socket from RouterInterface
+            readable_sockets, _, _ = select.select([sock], [], [], 1)  # Timeout of 1 second
+            if readable_sockets:
+                data, addr = sock.recvfrom(1024)
+                print(f"Received data from {addr}: {data.decode('utf-8')}")
+        except socket.error as e:
+            print(f"Error receiving data on port {input_port}: {e}")
 
-    def get_outputs(self):
-        return self.outputs
+    def process_packet(self, data):
+        pass
+
+    def handle_timers(self):
+        pass

@@ -1,5 +1,7 @@
 from configReader import *
 from socketBinder import *
+from ripProtocol import *
+
 import sys
 
 
@@ -40,6 +42,10 @@ def main():
         except KeyboardInterrupt:
             print("\nProgram terminated by user.")
             sys.exit(1)
+
+    # Start the RIPProtocol to listen for incoming data on input ports
+    rip_protocol = RIPProtocol(router_info)
+    rip_protocol.start_listening()
 
 
 if __name__ == "__main__":
