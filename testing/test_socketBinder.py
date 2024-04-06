@@ -4,6 +4,7 @@ from src.socketBinder import RouterInterface
 import socket
 import select
 
+
 def test_init_sockets():
 
     input_ports = [5009, 5001, 5002]
@@ -12,6 +13,7 @@ def test_init_sockets():
 
     for port in input_ports:
         assert port in router_interface.get_sockets()
+
 
 def test_init_sockets_error():
 
@@ -23,6 +25,7 @@ def test_init_sockets_error():
     else:
         assert False
 
+
 def test_receive():
 
     input_ports = [5000, 5001, 5002]
@@ -32,6 +35,7 @@ def test_receive():
     received_data = router_interface.receive()
     assert len(received_data) == 1
     assert received_data[0] == b"Test data"
+
 
 def test_send():
  
@@ -45,12 +49,14 @@ def test_send():
     sender.send(b'test data', 5014)
     assert receiver.receive()[0] == b"test data"
 
+
 def test_str():
 
     input_ports = [5000, 5001, 5002]
     router_interface = RouterInterface(input_ports)
     expected_str = f"Host: 127.0.0.1, Input Ports: {input_ports}, Sockets Info: Port 5000: ('127.0.0.1', 5000), Port 5001: ('127.0.0.1', 5001), Port 5002: ('127.0.0.1', 5002), Num Sockets: {len(input_ports)}, Num Ports: {len(input_ports)}"
     assert str(router_interface) == expected_str
+
 
 if __name__ == "__main__":
     print("Testing RouterInterface")

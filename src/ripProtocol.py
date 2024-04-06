@@ -28,3 +28,9 @@ class RIPProtocol:
 
     def handle_timers(self):
         pass
+
+    def update_routing_table(self):
+        pass
+
+    def send_data(self, output_port, data):
+        pass
