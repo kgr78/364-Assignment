@@ -12,14 +12,12 @@ class ConfigReader:
                         self.config[key] = value
         except FileNotFoundError:
             print(f"Error: Configuration file '{filename}' not found.")
-            exit(1)
 
     def validateConfig(self):
         required_params = ['router-id', 'input-ports', 'outputs']
         for param in required_params:
             if param not in self.config:
                 print(f"Error: '{param}' parameter missing in the configuration file.")
-                exit(1)
 
         if 'router-id' in self.config:
             try:
@@ -28,7 +26,6 @@ class ConfigReader:
                     raise ValueError("Router ID must be between 1 and 64000.")
             except ValueError:
                 print("Error: 'router-id' must be a positive integer between 1 and 64000.")
-                exit(1)
 
         if 'input-ports' in self.config:
             input_ports = self.config['input-ports'].split(',')
@@ -39,7 +36,6 @@ class ConfigReader:
                         raise ValueError("Input port number must be between 1024 and 64000.")
                 except ValueError:
                     print("Error: Input port numbers must be positive integers between 1024 and 64000.")
-                    exit(1)
 
         if 'outputs' in self.config:
             outputs = self.config['outputs'].split(',')
@@ -57,7 +53,6 @@ class ConfigReader:
                         raise ValueError("Router ID in outputs must be between 1 and 64000.")
                 except ValueError:
                     print("Error: Invalid format for output entry in the configuration file.")
-                    exit(1)
 
     def getRouterId(self):
         return int(self.config['router-id'])
