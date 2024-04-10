@@ -4,7 +4,29 @@ import select
 
 class RIPProtocol:
     def __init__(self, router_info):
+        
         self.router_info = router_info
+        self._routing_table = {}
+        self.init_routing_table()
+        self.print_routing_table()
+   
+    def print_routing_table(self):
+        print(f"Routing Table:{self.router_info}")
+        columns = "|   Dest   |   Next  |  Timeout  |  State   |"
+        print(columns)
+        for dest, info in self._routing_table.items():
+            print(f"| {dest} | {info['next']} | {info['timeout']} | {info['state']} |")
+
+
+    def init_routing_table(self):
+        for router_id, router_data in self.router_info.items():
+            outputs = router_data['outputs']
+            for output_port, metric, dest_router_id in outputs:
+                self._routing_table[output_port] = {
+                    'next': dest_router_id,
+                    'timeout': None,
+                    'state': 'active'
+                }
 
     def start_listening(self):
         while True:
@@ -23,14 +45,15 @@ class RIPProtocol:
         except socket.error as e:
             print(f"Error receiving data on port {input_port}: {e}")
 
+    def update_routing_table(self):
+        pass
     def process_packet(self, data):
         pass
 
     def handle_timers(self):
         pass
 
-    def update_routing_table(self):
-        pass
+
 
     def send_data(self, output_port, data):
         pass
