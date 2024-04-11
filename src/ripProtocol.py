@@ -1,23 +1,30 @@
 import socket
 import select
 
+from ripRoute import Route
+
 
 class RIPProtocol:
     def __init__(self, router_info):
         
         self.router_info = router_info
         self._routing_table = {}
+        self.route = []
         self.init_routing_table()
         self.print_routing_table()
-   
+    def init_routing_table(self):
+        route = Route(0, 0, None)
+        self.route.append(route)
+        print(self.route)
+        router_id = next(iter(self.router_info))
+        self._routing_table[router_id] = route
     def print_routing_table(self):
-        print(f"Routing Table:{self.router_info}")
-        columns = "|   Dest   |   Next  |  Timeout  |  State   |"
+        print(f"Routing Table info:{self.router_info}")
+        columns = "|   Destination   |   Next Hop  | Metric | Timeout  | Garbage Timer | State   |"
         print(columns)
-        for dest, info in self._routing_table.items():
-            print(f"| {dest} | {info['next']} | {info['timeout']} | {info['state']} |")
-
-
+        for i in self._routing_table.items():
+            print(f"| {Route._destination} | {Route._next_hop} | {Route._metric} | {Route._deletion_timer} | {Route._garbage_timer} | {Route._state} |")
+    
     def init_routing_table(self):
         for router_id, router_data in self.router_info.items():
             outputs = router_data['outputs']
