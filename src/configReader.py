@@ -1,19 +1,24 @@
+def readConfigFile(file_name):
+    try:
+        with open(file_name) as config_file:
+            config = config_file.read().splitlines()
+            return config
+    except FileNotFoundError:
+        print(f"Error: Configuration file '{file_name}' not found.")
+
+
 class ConfigReader:
     def __init__(self):
         self.config = {}
 
-    def parseConfigFile(self, filename):
-        try:
-            with open(filename, 'r') as file:
-                for line in file:
-                    line = line.strip()
-                    if line and not line.startswith('#'):
-                        key, value = line.split(maxsplit=1)
-                        self.config[key] = value
-        except FileNotFoundError:
-            print(f"Error: Configuration file '{filename}' not found.")
+    def validateConfig(self, data):
+        self.config = {}  # Clear existing config
+        for line in data:
+            key, value = line.split(' ', 1)
+            self.config[key.strip()] = value.strip()
 
-    def validateConfig(self):
+        print("##################", self.config)
+
         required_params = ['router-id', 'input-ports', 'outputs']
         for param in required_params:
             if param not in self.config:
@@ -53,6 +58,9 @@ class ConfigReader:
                         raise ValueError("Router ID in outputs must be between 1 and 64000.")
                 except ValueError:
                     print("Error: Invalid format for output entry in the configuration file.")
+        print("##################", self.config)
+        config_data = {"router_id": self.config['router-id'], "input_ports": self.config['input-ports'], "outputs": self.config['outputs']}
+        return config_data
 
     def getRouterId(self):
         return int(self.config['router-id'])

@@ -1,7 +1,7 @@
 import socket
 import select
 
-from ripRoute import Route
+from ripRoute import Router
 
 
 # This creates the entry packet
@@ -24,6 +24,16 @@ def create_packet(router_id, command, entries):
     return packet
 
 
+def packet_check(packet):
+    version = 2
+    if packet[0] != 2 or packet[0] != 1:
+        return False
+    if packet[1] != version:
+        return False
+    if (packet[2] << 8 | packet[3]) :
+        return False
+
+
 class RIPProtocol:
     def __init__(self, router_info):
 
@@ -34,7 +44,7 @@ class RIPProtocol:
         self.print_routing_table()
 
     def init_routing_table(self):
-        route = Route(0, 0, None)
+        route = Router(0, 0, None)
         self.route.append(route)
         print(self.route)
         router_id = next(iter(self.router_info))
@@ -46,7 +56,7 @@ class RIPProtocol:
         print(columns)
         for i in self._routing_table.items():
             print(
-                f"| {Route._destination} | {Route._next_hop} | {Route._metric} | {Route._deletion_timer} | {Route._garbage_timer} | {Route._state} |")
+                f"| {Router._destination} | {Router._next_hop} | {Router._metric} | {Router._deletion_timer} | {Router._garbage_timer} | {Router._state} |")
 
     def init_routing_table(self):
         for router_id, router_data in self.router_info.items():
