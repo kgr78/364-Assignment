@@ -4,27 +4,50 @@ import select
 from ripRoute import Route
 
 
+# This creates the entry packet
+def create_entry_packet(router_id, metric):
+    address_family = 2
+    entryPacket = bytearray([(address_family >> 8), (address_family & 0xFF), (0 >> 8), (0 & 0xFF), (router_id >> 24),
+                             ((router_id >> 16) & 0x00FF), ((router_id & 0xFFFF) >> 8), (router_id & 0xFF),
+                             (0 >> 24), ((0 >> 16) & 0x00FF), ((0 & 0xFFFF) >> 8), (0 & 0xFF),
+                             (0 >> 24), ((0 >> 16) & 0x00FF), ((0 & 0xFFFF) >> 8), (0 & 0xFF),
+                             (metric >> 24), ((metric >> 16) & 0x00FF), ((metric & 0xFFFF) >> 8), (metric & 0xFF)])
+    return entryPacket
+
+
+# This creates the packet to be sent
+def create_packet(router_id, command, entries):
+    version = 2
+    packet = bytearray([command, version, (router_id >> 8), (router_id & 0xFF)])
+    if command == 2:
+        packet.extend(entries)
+    return packet
+
+
 class RIPProtocol:
     def __init__(self, router_info):
-        
+
         self.router_info = router_info
         self._routing_table = {}
         self.route = []
         self.init_routing_table()
         self.print_routing_table()
+
     def init_routing_table(self):
         route = Route(0, 0, None)
         self.route.append(route)
         print(self.route)
         router_id = next(iter(self.router_info))
         self._routing_table[router_id] = route
+
     def print_routing_table(self):
         print(f"Routing Table info:{self.router_info}")
-        columns = "|   Destination   |   Next Hop  | Metric | Timeout  | Garbage Timer | State   |"
+        columns = "|   Destination   |   Next Hop  | Metric | Timeout  | Garbage Timer | State |"
         print(columns)
         for i in self._routing_table.items():
-            print(f"| {Route._destination} | {Route._next_hop} | {Route._metric} | {Route._deletion_timer} | {Route._garbage_timer} | {Route._state} |")
-    
+            print(
+                f"| {Route._destination} | {Route._next_hop} | {Route._metric} | {Route._deletion_timer} | {Route._garbage_timer} | {Route._state} |")
+
     def init_routing_table(self):
         for router_id, router_data in self.router_info.items():
             outputs = router_data['outputs']
@@ -54,13 +77,12 @@ class RIPProtocol:
 
     def update_routing_table(self):
         pass
+
     def process_packet(self, data):
         pass
 
     def handle_timers(self):
         pass
-
-
 
     def send_data(self, output_port, data):
         pass
