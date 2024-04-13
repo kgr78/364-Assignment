@@ -2,12 +2,13 @@ import socket
 import multiprocessing as mp
 import time
 
-from main import run_checks_and_get_values
-from ripProtocol import RIPProtocol
-from socketBinder import RouterInterface
+from src.main import run_checks_and_get_values
+from src.ripProtocol import RIPProtocol
+from src.socketBinder import RouterInterface
 config_file = '../configFile/config1.txt'
 
-def rounter_info():
+
+def router_info():
     data = {1: {'input_ports': [6000, 6001, 6002], 'outputs': [(6003, 1, 2), (6004, 8, 7), (6005, 5, 6)]}}
     router_id = next(iter(data))
     print("Router ID:", router_id)
