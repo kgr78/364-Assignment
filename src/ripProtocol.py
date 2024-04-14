@@ -26,12 +26,13 @@ def create_packet(router_id, command, entries):
 
 def packet_check(packet):
     version = 2
-    if packet[0] != 2 or packet[0] != 1:
+    if packet[0] != 2 and packet[0] != 1:
         return False
     if packet[1] != version:
         return False
-    if (packet[2] << 8 | packet[3]) :
-        return False
+    # This needs to be changed around so that it can check the id of the router
+    # if (packet[2] << 8 | packet[3]) != 0:
+    # if packet[0] == 2:
 
 
 class RIPProtocol:
@@ -47,7 +48,7 @@ class RIPProtocol:
         self.route = []
         self.route.append(self.router_info)
 
-        print("done1",self.route)
+        print("done1", self.route)
         # self.init_routing_table()
         print("done2")
         self.print_routing_table()
@@ -61,47 +62,45 @@ class RIPProtocol:
     #             self._routing_table[output_port] = route
 
     def print_routing_table(self):
-            print(f"Router ID: {self.router_info.get_router_id()}")
+        print(f"Router ID: {self.router_info.get_router_id()}")
 
-            # Debugging print statements
-            next_hop = self.router_info.get_next_hop()
-            print("Next Hop:", next_hop)
-            
-            metric = self.router_info.get_metric()
-            print("Metric:", metric)
-            
-            deletion_timer = self.router_info.get_deletion_timer()
-            print("Deletion Timer:", deletion_timer)
-            
-            garbage_timer = self.router_info.get_garbage_timer()
-            print("Garbage Timer:", garbage_timer)
-            
-            state = self.router_info.get_state()
-            print("State:", state)
+        # Debugging print statements
+        next_hop = self.router_info.get_next_hop()
+        print("Next Hop:", next_hop)
 
-            table = [
-                f"+----------------+----------------+----{self.router_info.get_router_id()}------------+----------------+----------------+",
-                "+----------------+----------------+----------------+----------------+----------------+",
-                "| Destination    | Next Hop       | Metric         | Deletion Timer | Garbage Timer  | State          |",
-                "+----------------+----------------+----------------+----------------+----------------+"
-            ]
+        metric = self.router_info.get_metric()
+        print("Metric:", metric)
 
-            # Handle the case where garbage_timer is None
-            if garbage_timer is None:
-                garbage_timer_str = "N/A"
-            else:
-                garbage_timer_str = str(garbage_timer)
+        deletion_timer = self.router_info.get_deletion_timer()
+        print("Deletion Timer:", deletion_timer)
 
-            # Append data to the table
-            table.append("| {0:<14} | {1:<14} | {2:<14} | {3:<14} | {4:<14} | {5:<14} |".format(
-                "destination_value", next_hop, metric, deletion_timer, garbage_timer_str, state))
+        garbage_timer = self.router_info.get_garbage_timer()
+        print("Garbage Timer:", garbage_timer)
 
-            table.append("+----------------+----------------+----------------+----------------+----------------+")
+        state = self.router_info.get_state()
+        print("State:", state)
 
-            for row in table:
-                print(row)
+        table = [
+            f"+----------------+----------------+----{self.router_info.get_router_id()}------------+----------------+----------------+",
+            "+----------------+----------------+----------------+----------------+----------------+",
+            "| Destination    | Next Hop       | Metric         | Deletion Timer | Garbage Timer  | State          |",
+            "+----------------+----------------+----------------+----------------+----------------+"
+        ]
 
+        # Handle the case where garbage_timer is None
+        if garbage_timer is None:
+            garbage_timer_str = "N/A"
+        else:
+            garbage_timer_str = str(garbage_timer)
 
+        # Append data to the table
+        table.append("| {0:<14} | {1:<14} | {2:<14} | {3:<14} | {4:<14} | {5:<14} |".format(
+            "destination_value", next_hop, metric, deletion_timer, garbage_timer_str, state))
+
+        table.append("+----------------+----------------+----------------+----------------+----------------+")
+
+        for row in table:
+            print(row)
 
     def init_routing_table(self):
         for router_id, router_data in self.router_info.items():
@@ -112,6 +111,25 @@ class RIPProtocol:
                     'timeout': None,
                     'state': 'active'
                 }
+
+    def update_routing_table(self, packet):
+        command = packet[0]
+        version = packet[1]
+        router_id = (packet[2] << 8) | packet[3]
+
+        if command == 2 and version == 2:
+            entries = packet[4:]
+            for i in range(0, len(entries), 20):
+                dest_router_id = (entries[i] << 24) | (entries[i + 1] << 16) | (entries[i + 2] << 8) | entries[i + 3]
+                metric = (entries[i + 16] << 24) | (entries[i + 17] << 16) | (entries[i + 18] << 8) | entries[i + 19]
+
+                # Update routing table based on received entries
+                if dest_router_id != router_id:
+                    self.routing_table[dest_router_id] = {
+                        'next_hop': router_id,
+                        'metric': min(metric, 16),
+                        'state': 'active'
+                    }
 
     def start_listening(self):
         while True:
@@ -130,11 +148,9 @@ class RIPProtocol:
         except socket.error as e:
             print(f"Error receiving data on port {input_port}: {e}")
 
-    def update_routing_table(self):
-        pass
-
     def process_packet(self, data):
-        pass
+        packet = bytearray(data)
+        self.update_routing_table(packet)
 
     def handle_timers(self):
         pass
