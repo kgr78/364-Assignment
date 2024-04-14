@@ -7,11 +7,16 @@ LOCAL_HOST = "127.0.0.1"
 class RouterInterface:
 
     def __init__(self, input_ports):
-        self._input_ports = input_ports
+        print(input_ports)
+        # 6000, 6001, 6002
+        self._input_ports = [int(port) for port in input_ports.split(',')]
+        print(self._input_ports)
         self._sockets = {}
         self._time_out = 1
         self._port = input_ports[0]
+        print(type(input_ports))
         self.init_sockets()
+        print("donee")
 
     def init_sockets(self):
         try:

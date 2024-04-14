@@ -38,25 +38,70 @@ class RIPProtocol:
     def __init__(self, router_info):
 
         self.router_info = router_info
+        print(self.router_info._router_id)
+        # 1
         self._routing_table = {}
-        self.route = []
-        self.init_routing_table()
-        self.print_routing_table()
 
-    def init_routing_table(self):
-        route = Router(0, 0, None)
-        self.route.append(route)
-        print(self.route)
-        router_id = next(iter(self.router_info))
-        self._routing_table[router_id] = route
+        self._routing_table[router_info._router_id] = router_info
+        # print(self._routing_table)
+        self.route = []
+        self.route.append(self.router_info)
+
+        print("done1",self.route)
+        # self.init_routing_table()
+        print("done2")
+        self.print_routing_table()
+        print("done")
+
+    # def init_routing_table(self):
+    #     for router_id, router_data in self.router_info.items():
+    #         outputs = router_data['outputs']
+    #         for output_port, metric, dest_router_id in outputs:
+    #             route = Router(dest_router_id, [], [])  # Initialize router objects
+    #             self._routing_table[output_port] = route
 
     def print_routing_table(self):
-        print(f"Routing Table info:{self.router_info}")
-        columns = "|   Destination   |   Next Hop  | Metric | Timeout  | Garbage Timer | State |"
-        print(columns)
-        for i in self._routing_table.items():
-            print(
-                f"| {Router._destination} | {Router._next_hop} | {Router._metric} | {Router._deletion_timer} | {Router._garbage_timer} | {Router._state} |")
+            print(f"Router ID: {self.router_info.get_router_id()}")
+
+            # Debugging print statements
+            next_hop = self.router_info.get_next_hop()
+            print("Next Hop:", next_hop)
+            
+            metric = self.router_info.get_metric()
+            print("Metric:", metric)
+            
+            deletion_timer = self.router_info.get_deletion_timer()
+            print("Deletion Timer:", deletion_timer)
+            
+            garbage_timer = self.router_info.get_garbage_timer()
+            print("Garbage Timer:", garbage_timer)
+            
+            state = self.router_info.get_state()
+            print("State:", state)
+
+            table = [
+                f"+----------------+----------------+----{self.router_info.get_router_id()}------------+----------------+----------------+",
+                "+----------------+----------------+----------------+----------------+----------------+",
+                "| Destination    | Next Hop       | Metric         | Deletion Timer | Garbage Timer  | State          |",
+                "+----------------+----------------+----------------+----------------+----------------+"
+            ]
+
+            # Handle the case where garbage_timer is None
+            if garbage_timer is None:
+                garbage_timer_str = "N/A"
+            else:
+                garbage_timer_str = str(garbage_timer)
+
+            # Append data to the table
+            table.append("| {0:<14} | {1:<14} | {2:<14} | {3:<14} | {4:<14} | {5:<14} |".format(
+                "destination_value", next_hop, metric, deletion_timer, garbage_timer_str, state))
+
+            table.append("+----------------+----------------+----------------+----------------+----------------+")
+
+            for row in table:
+                print(row)
+
+
 
     def init_routing_table(self):
         for router_id, router_data in self.router_info.items():
