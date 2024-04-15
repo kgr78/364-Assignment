@@ -1,5 +1,7 @@
 import socket
 import select
+import random
+import time
 
 from ripRoute import Router
 
@@ -35,9 +37,11 @@ def packet_check(packet):
     # if packet[0] == 2:
 
 
+TIMER_INTERVAL = 30
+
+
 class RIPProtocol:
     def __init__(self, router_info):
-
         self.router_info = router_info
         print(self.router_info._router_id)
         # 1
@@ -47,6 +51,8 @@ class RIPProtocol:
         # print(self._routing_table)
         self.route = []
         self.route.append(self.router_info)
+        self.timer_interval = TIMER_INTERVAL
+        self.timer_start = time.time()
 
         print("done1", self.route)
         # self.init_routing_table()
@@ -60,6 +66,14 @@ class RIPProtocol:
     #         for output_port, metric, dest_router_id in outputs:
     #             route = Router(dest_router_id, [], [])  # Initialize router objects
     #             self._routing_table[output_port] = route
+
+    def send_periodic_updates(self):
+        while True:
+            if time.time() - self.timer_start >= self.timer_interval:
+                periodic_update_packet = self.generate_periodic_update()
+                self.send_to_neighbors(periodic_update_packet)
+                self.timer_interval = random.uniform(0.8 * TIMER_INTERVAL, 1.2 * TIMER_INTERVAL)
+                self.timer_start = time.time()
 
     def print_routing_table(self):
         print(f"Router ID: {self.router_info.get_router_id()}")
@@ -146,7 +160,7 @@ class RIPProtocol:
                     # Add a new entry to the routing table for the destination router
                     self._routing_table[dest_router_id] = {
                         'next_hop': router_id,
-                        'metric': min(metric, 15),  # Cap the metric at 15
+                        'metric': min(metric, 15),
                         'state': 'active'
                     }
                     print(f"Added new route to {dest_router_id} with metric {metric} via {router_id}.")
@@ -168,19 +182,19 @@ class RIPProtocol:
         except socket.error as e:
             print(f"Error receiving data on port {input_port}: {e}")
 
-    def process_packet(self, data):
-        packet = bytearray(data)
+    def process_packet(self, packet):
         command = packet[0]
         version = packet[1]
-
-        if command == 1:
-            # Process triggered updates or responses
-            self.update_routing_table(packet)
-        elif command == 2:
-            # Process periodic updates
-            self.update_routing_table(packet)
+        if packet_check(packet) is False:
+            print("Packet failed the packet check")
+            return
         else:
-            print("Unknown command in received packet.")
+            if command == 1:
+                # Process triggered updates or responses
+                self.update_routing_table(packet)
+            elif command == 2:
+                # Process periodic updates
+                self.update_routing_table(packet)
 
     def handle_timers(self):
         pass

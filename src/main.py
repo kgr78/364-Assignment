@@ -1,5 +1,4 @@
 from configReader import *
-from ripRoute import Router
 from socketBinder import *
 from ripProtocol import *
 
