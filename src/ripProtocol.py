@@ -123,13 +123,33 @@ class RIPProtocol:
                 dest_router_id = (entries[i] << 24) | (entries[i + 1] << 16) | (entries[i + 2] << 8) | entries[i + 3]
                 metric = (entries[i + 16] << 24) | (entries[i + 17] << 16) | (entries[i + 18] << 8) | entries[i + 19]
 
-                # Update routing table based on received entries
-                if dest_router_id != router_id:
-                    self.routing_table[dest_router_id] = {
+                # Check if the destination router ID already exists in the routing table
+                if dest_router_id in self._routing_table:
+                    existing_entry = self._routing_table[dest_router_id]
+                    existing_metric = existing_entry['metric']
+
+                    # Handle metric 16 (route not usable)
+                    if metric == 16:
+                        if existing_metric != 16:
+                            # Mark the route as invalid if it wasn't already
+                            existing_entry['metric'] = 16
+                            existing_entry['state'] = 'invalid'
+                            print(f"Route to {dest_router_id} marked as invalid due to metric 16.")
+                    else:
+                        # Update the routing table only if the new metric is better (lower) or if it's invalid (16)
+                        if metric < existing_metric or existing_metric == 16:
+                            existing_entry['next_hop'] = router_id
+                            existing_entry['metric'] = min(metric, 15)  # Cap the metric at 15
+                            existing_entry['state'] = 'active'
+                            print(f"Route to {dest_router_id} updated with metric {metric} via {router_id}.")
+                else:
+                    # Add a new entry to the routing table for the destination router
+                    self._routing_table[dest_router_id] = {
                         'next_hop': router_id,
-                        'metric': min(metric, 16),
+                        'metric': min(metric, 15),  # Cap the metric at 15
                         'state': 'active'
                     }
+                    print(f"Added new route to {dest_router_id} with metric {metric} via {router_id}.")
 
     def start_listening(self):
         while True:
@@ -150,7 +170,17 @@ class RIPProtocol:
 
     def process_packet(self, data):
         packet = bytearray(data)
-        self.update_routing_table(packet)
+        command = packet[0]
+        version = packet[1]
+
+        if command == 1:
+            # Process triggered updates or responses
+            self.update_routing_table(packet)
+        elif command == 2:
+            # Process periodic updates
+            self.update_routing_table(packet)
+        else:
+            print("Unknown command in received packet.")
 
     def handle_timers(self):
         pass
