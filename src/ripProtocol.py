@@ -26,22 +26,28 @@ class RIPProtocol:
         print(self.router_info._router_id)
         # 1
         self._routing_table = {}
-
         self._routing_table[router_info._router_id] = router_info
         for router_id, router_obj in self._routing_table.items():
             print(f"Router ID: {router_id}")
             print(f"Router Object: {router_obj}")
         print(self._routing_table)
+
         self.route = []
         self.route.append(self.router_info)
         self.timer_interval = TIMER_INTERVAL
         self.timer_start = time.time()
-
         print("done1", self.route)
         # self.init_routing_table()
         print("done2")
         self.print_routing_table()
         print("done")
+
+        #2
+        # send the routing table to the neighbors
+        self.send_packets()
+    def send_packets(self):
+        for port in self.router_info.get_inputs():
+            print("sending on port", port)
     
     # def init_routing_table(self):
     #     for router_id, router_data in self.router_info.items():
@@ -71,9 +77,9 @@ class RIPProtocol:
 
         table = [
             f"+----------------+----------------+----{self.router_info.get_router_id()}------------+----------------+----------------+",
-            "+----------------+----------------+----------------+----------------+----------------+",
-            "| Destination    | Next Hop       | Metric         | Deletion Timer | Garbage Timer  | State          |",
-            "+----------------+----------------+----------------+----------------+----------------+"
+             "+----------------+----------------+----------------+----------------+----------------+----------------+",
+             "| Destination    | Next Hop       | Metric         | Deletion Timer | Garbage Timer  | State          |",
+             "+----------------+----------------+----------------+----------------+----------------+----------------"
         ]
 
         # Handle the case where garbage_timer is None

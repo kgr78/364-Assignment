@@ -18,7 +18,7 @@ def create_router(data):
     router_id = data['router_id']
     input_ports = data['input_ports']
     outputs = data['outputs']
-    next_hop = " "
+    next_hop = None
     metric = 0
     state = "active"
     router = Router(router_id, input_ports, outputs, next_hop, metric, state)

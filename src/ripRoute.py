@@ -2,16 +2,25 @@ import datetime
 
 class Router:
     def __init__(self, router_id, inputs, outputs, next_hop, metric, state):
-        self._router_id = router_id
-        self._inputs = inputs
-        self._outputs = outputs
+
+        self._router_id = int(router_id)
+        self._inputs = [int(x) for x in inputs.split(', ')]
+        # need to check if entry is double or more
+        self._outputs = {tuple(int(y) for y in x.split('-')) for x in outputs.split(', ')}
         self._deletion_timer = datetime.datetime.now()
         self._garbage_timer = None
         self._timer_limit = 30
         self._state = 'active'
-        self.next_hop = next_hop
-        self.metric = metric
+        self.next_hop = int(next_hop.strip()) if next_hop and next_hop.strip().isdigit() else None
+        self.metric = int(metric)
         self.state = state
+
+        print("Router ID:", self._router_id, "Type:", type(self._router_id))
+        print("Inputs:", self._inputs, "Type:", type(self._inputs))
+        print("Outputs:", self._outputs, "Type:", type(self._outputs))
+        print("Next Hop:", self.next_hop, "Type:", type(self.next_hop))
+        print("Metric:", self.metric, "Type:", type(self.metric))
+        print("State:", self.state, "Type:", type(self.state))
 
     def get_router_id(self):
         return self._router_id
