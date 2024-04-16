@@ -4,6 +4,7 @@ import random
 import time
 
 from ripRoute import Router
+from socketBinder import RouterInterface
 
 
 def packet_check(packet):
@@ -26,6 +27,7 @@ class RIPProtocol:
         print(self.router_info._router_id)
         # 1
         self._routing_table = {}
+
         self._routing_table[router_info._router_id] = router_info
         for router_id, router_obj in self._routing_table.items():
             print(f"Router ID: {router_id}")
@@ -38,17 +40,26 @@ class RIPProtocol:
         self.timer_start = time.time()
         print("done1", self.route)
         # self.init_routing_table()
-        print("done2")
         self.print_routing_table()
-        print("done")
 
         #2
         # send the routing table to the neighbors
         self.send_packets()
     def send_packets(self):
-        for port in self.router_info.get_inputs():
-            print("sending on port", port)
-    
+ 
+        try:
+            ports = self.router_info.get_outputs()
+            print(f"Ports:111111 {ports}", ports)
+        
+            for port,_,_ in ports:
+                print("sending on port", port)
+                RouterInterface.send(self, self._routing_table, port)
+            print("donnnnne")
+            for port in self.router_info.get_outputs():
+                print("sending on port", port)
+        except ValueError as error:
+            print(error)
+   
     # def init_routing_table(self):
     #     for router_id, router_data in self.router_info.items():
     #         outputs = router_data['outputs']
@@ -90,7 +101,7 @@ class RIPProtocol:
 
         # Append data to the table
         table.append("| {0:<14} | {1:<14} | {2:<14} | {3:<14} | {4:<14} | {5:<14} |".format(
-            "destination_value", next_hop, metric, deletion_timer, garbage_timer_str, state))
+            "destination_value", "N/A" if next_hop is None else next_hop, metric, deletion_timer, garbage_timer_str, state))
 
         table.append("+----------------+----------------+----------------+----------------+----------------+")
 

@@ -43,7 +43,7 @@ def main():
         data = run_checks_and_get_values(config_file)
         print("#####")
         router = create_router(data)
-        print("done",router._inputs)
+        print("done1",router._inputs)
         # router_info[router.get_router_id()] = {'input_ports': input_ports, 'outputs': outputs}
         RouterInterface(router._inputs)
         print("donesocket")
