@@ -48,7 +48,10 @@ class RIPProtocol:
         self._routing_table = {}
 
         self._routing_table[router_info._router_id] = router_info
-        # print(self._routing_table)
+        for router_id, router_obj in self._routing_table.items():
+            print(f"Router ID: {router_id}")
+            print(f"Router Object: {router_obj}")
+        print(self._routing_table)
         self.route = []
         self.route.append(self.router_info)
         self.timer_interval = TIMER_INTERVAL
@@ -59,7 +62,7 @@ class RIPProtocol:
         print("done2")
         self.print_routing_table()
         print("done")
-
+    
     # def init_routing_table(self):
     #     for router_id, router_data in self.router_info.items():
     #         outputs = router_data['outputs']

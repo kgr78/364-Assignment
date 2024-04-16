@@ -66,3 +66,5 @@ class Router:
 
     def set_timer_limit(self, timer_limit):
         self._timer_limit = timer_limit
+    def __str__(self):
+        return f"Router ID: {self._router_id}, Inputs: {self._inputs}, Outputs: {self._outputs}, Next Hop: {self.next_hop}, Metric: {self.metric}, State: {self.state}"
