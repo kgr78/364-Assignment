@@ -46,11 +46,14 @@ def main():
         print("done1",router._inputs)
         # router_info[router.get_router_id()] = {'input_ports': input_ports, 'outputs': outputs}
         RouterInterface(router._inputs)
+        print(f"#############################{RouterInterface(router._inputs)}################################")
         print("donesocket")
 
         rip_protocol = RIPProtocol(router)
         print("doneprotocol")
+        
         # rip_protocol.start_listening()
+       
         # print(f"Router {router.get_router_id()} input ports: {router.get_input_ports()} bound successfully.")
     except FileNotFoundError:
         print(f"Error: Configuration file '{config_file}' not found.")

@@ -9,10 +9,11 @@ class RouterInterface:
     def __init__(self, input_ports):
         print("socket class:", input_ports)
         # 6000, 6001, 6002
-        self._sockets = {}
+        self.sockets = {}
         self._time_out = 1
         self._input_ports = input_ports
-        print(type(input_ports))
+        self.single_port = input_ports[0]
+        print(f"this is input ports: {self.single_port}", type(self.single_port))
         self.init_sockets()
         print("donee")
 
@@ -21,15 +22,16 @@ class RouterInterface:
             for port in self._input_ports:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 sock.bind((LOCAL_HOST, port))
-                self._sockets[port] = sock
+                self.sockets[port] = sock
+                print(f"Socket for port {self.sockets[port]} initialised")
         except socket.error as error:
             print("Error: Failed to create socket", error)
 
     def get_sockets(self):
-        return self._sockets
+        return self.sockets
 
     def get_num_sockets(self):
-        return len(self._sockets)
+        return len(self.sockets)
 
     def get_num_ports(self):
         return len(self._input_ports)
@@ -40,7 +42,7 @@ class RouterInterface:
             data (list): List of received data from sockets
         """
         try:
-            sockets = list(self._sockets.values())
+            sockets = list(self.sockets.values())
             # print(f"################list of sockets:{sockets}################")
             readable_sockets, _, _ = select.select(sockets, [], [], self._time_out)
             data = []
@@ -56,9 +58,11 @@ class RouterInterface:
         Paramaters: data (bytes): Data to send, Port (int): Port to send data to
         """
         try:
-            if not isinstance(data, bytes):
+            # ??
+            if not isinstance(data, bytearray):
                 raise ValueError(f"Expected data to be bytes, but got {type(data)}")
-            sending_socket = self._sockets[self._port]
+            print(f"sockets:{self.sockets[self.single_port]}")
+            sending_socket = self.sockets[self.single_port]
             dest = (LOCAL_HOST, port)
             sending_socket.sendto(data, dest)
         except KeyError:
@@ -68,7 +72,7 @@ class RouterInterface:
 
     def __str__(self):
         sockets_info = ""
-        for port, sock in self._sockets.items():
+        for port, sock in self.sockets.items():
             sockets_info += f"Port {port}: {sock.getsockname()}, "
         sockets_info = sockets_info.rstrip(", ")
         return f"Host: {LOCAL_HOST}, Input Ports: {self._input_ports}, Sockets Info: {sockets_info}, Num Sockets: {self.get_num_sockets()}, Num Ports: {self.get_num_ports()}"

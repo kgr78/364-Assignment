@@ -41,25 +41,32 @@ class RIPProtocol:
         print("done1", self.route)
         # self.init_routing_table()
         self.print_routing_table()
-
+        self.routerinterface = RouterInterface(self.router_info.get_inputs())
         #2
         # send the routing table to the neighbors
         self.send_packets()
+        while True:
+            self.test_recieve()
+    
     def send_packets(self):
  
         try:
             ports = self.router_info.get_outputs()
             print(f"Ports:111111 {ports}", ports)
-        
-            for port,_,_ in ports:
+
+            for port,metric,_ in ports:
+                byte_data =  self.create_entry_packet(port, metric)
                 print("sending on port", port)
-                RouterInterface.send(self, self._routing_table, port)
-            print("donnnnne")
+                self.routerinterface.send(byte_data, port)
+
             for port in self.router_info.get_outputs():
                 print("sending on port", port)
         except ValueError as error:
             print(error)
-   
+    
+    def test_recieve(self):
+            data = self.routerinterface.receive()
+            print(data)
     # def init_routing_table(self):
     #     for router_id, router_data in self.router_info.items():
     #         outputs = router_data['outputs']
@@ -176,10 +183,11 @@ class RIPProtocol:
 
     def start_listening(self):
         while True:
-            for router_id, router_data in self.router_info.items():
-                input_ports = router_data['input_ports']
-                for input_port in input_ports:
+            input_ports = self.router_info.get_inputs()
+            print(f"Listening on ports: {input_ports}")
+            for input_port in input_ports:
                     self.receive_data(input_port)
+            print("donnnnne")
 
     def receive_data(self, input_port):
         try:
