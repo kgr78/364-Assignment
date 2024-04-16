@@ -76,3 +76,4 @@ class ConfigReader:
             port, metric, router_id = output.split('-')
             result.append((int(port), int(metric), int(router_id)))
         return result
+

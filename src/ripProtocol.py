@@ -6,26 +6,6 @@ import time
 from ripRoute import Router
 
 
-# This creates the entry packet
-def create_entry_packet(router_id, metric):
-    address_family = 2
-    entryPacket = bytearray([(address_family >> 8), (address_family & 0xFF), (0 >> 8), (0 & 0xFF), (router_id >> 24),
-                             ((router_id >> 16) & 0x00FF), ((router_id & 0xFFFF) >> 8), (router_id & 0xFF),
-                             (0 >> 24), ((0 >> 16) & 0x00FF), ((0 & 0xFFFF) >> 8), (0 & 0xFF),
-                             (0 >> 24), ((0 >> 16) & 0x00FF), ((0 & 0xFFFF) >> 8), (0 & 0xFF),
-                             (metric >> 24), ((metric >> 16) & 0x00FF), ((metric & 0xFFFF) >> 8), (metric & 0xFF)])
-    return entryPacket
-
-
-# This creates the packet to be sent
-def create_packet(router_id, command, entries):
-    version = 2
-    packet = bytearray([command, version, (router_id >> 8), (router_id & 0xFF)])
-    if command == 2:
-        packet.extend(entries)
-    return packet
-
-
 def packet_check(packet):
     version = 2
     if packet[0] != 2 and packet[0] != 1:
@@ -70,14 +50,6 @@ class RIPProtocol:
     #             route = Router(dest_router_id, [], [])  # Initialize router objects
     #             self._routing_table[output_port] = route
 
-    def send_periodic_updates(self):
-        while True:
-            if time.time() - self.timer_start >= self.timer_interval:
-                periodic_update_packet = self.generate_periodic_update()
-                self.send_to_neighbors(periodic_update_packet)
-                self.timer_interval = random.uniform(0.8 * TIMER_INTERVAL, 1.2 * TIMER_INTERVAL)
-                self.timer_start = time.time()
-
     def print_routing_table(self):
         print(f"Router ID: {self.router_info.get_router_id()}")
 
@@ -118,6 +90,23 @@ class RIPProtocol:
 
         for row in table:
             print(row)
+
+    def create_entry_packet(self, router_id, metric):
+        address_family = 2
+        entryPacket = bytearray([(address_family >> 8), (address_family & 0xFF), (0 >> 8), (0 & 0xFF), (router_id >> 24),
+                                 ((router_id >> 16) & 0x00FF), ((router_id & 0xFFFF) >> 8), (router_id & 0xFF),
+                                 (0 >> 24), ((0 >> 16) & 0x00FF), ((0 & 0xFFFF) >> 8), (0 & 0xFF),
+                                 (0 >> 24), ((0 >> 16) & 0x00FF), ((0 & 0xFFFF) >> 8), (0 & 0xFF),
+                                 (metric >> 24), ((metric >> 16) & 0x00FF), ((metric & 0xFFFF) >> 8), (metric & 0xFF)])
+        return entryPacket
+
+# This creates the packet to be sent
+    def create_packet(self, router_id, command, entries):
+        version = 2
+        packet = bytearray([command, version, (router_id >> 8), (router_id & 0xFF)])
+        if command == 2:
+            packet.extend(entries)
+        return packet
 
     def init_routing_table(self):
         for router_id, router_data in self.router_info.items():
@@ -185,6 +174,13 @@ class RIPProtocol:
         except socket.error as e:
             print(f"Error receiving data on port {input_port}: {e}")
 
+    def format_routing_entries(self):
+        entries = []
+        for dest_router_id, route_data in self._routing_table.items():
+            entry_data = self.create_entry_packet(dest_router_id, route_data['metric'])
+            entries.extend(entry_data)
+        return entries
+
     def process_packet(self, packet):
         command = packet[0]
         version = packet[1]
@@ -204,3 +200,15 @@ class RIPProtocol:
 
     def send_data(self, output_port, data):
         pass
+
+    # def generate_periodic_update(self):
+    #     entries = self.format_routing_entries()
+    #     return self.create_packet(2, entries)
+
+    # def send_periodic_updates(self):
+    #     while True:
+    #         if time.time() - self.timer_start >= self.timer_interval:
+    #             periodic_update_packet = self.generate_periodic_update()
+    #             self.send_to_neighbors(periodic_update_packet)
+    #             self.timer_interval = random.uniform(0.8 * TIMER_INTERVAL, 1.2 * TIMER_INTERVAL)
+    #             self.timer_start = time.time()
