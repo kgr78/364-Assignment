@@ -6,7 +6,7 @@ class Router:
         self._router_id = int(router_id)
         self._inputs = [int(x) for x in inputs.split(', ')]
         # need to check if entry is double or more
-        self._outputs = {tuple(int(y) for y in x.split('-')) for x in outputs.split(', ')}
+        self._outputs = [[int(y) for y in x.split('-')] for x in outputs.split(', ')]
         self._deletion_timer = datetime.datetime.now()
         self._garbage_timer = None
         self._timer_limit = 30
