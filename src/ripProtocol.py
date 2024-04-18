@@ -58,6 +58,9 @@ class RIPProtocol:
             if received_data:
                 for packet in received_data:
                     self.process_packet(packet)
+            # go through the value of timer and update if needed
+            self.print_routing_table()
+            
       
         
 
@@ -231,16 +234,18 @@ class RIPProtocol:
         version = packet[1]
         router_id = (packet[2] << 8) | packet[3]
         print(f"command: {command}, version: {version}, router_id: {router_id}")
-        # if packet_check(packet) is False:
-        #     print("Packet failed the packet check")
-        #     return
-        # else:
-        #     if command == 1:
-        #         # Process triggered updates or responses
-        #         self.update_routing_table(packet)
-        #     elif command == 2:
-        #         # Process periodic updates
-        #         self.update_routing_table(packet)
+        rip_entry = packet[4:]
+        # for i in range(4, len(packet)+1):
+        afi = (packet[4] << 8) | packet[5]  # Address Family Identifier
+        must_be_zero_1 = (packet[6] << 8) | packet[7]  # Must be zero
+        ipv4_address = ".".join(map(str, packet[8:12]))  # IPv4 Address
+        must_be_zero_2 = (packet[12] << 24) | (packet[13] << 16) | (packet[14] << 8) | packet[15]  # Must be zero
+        metric = (packet[16] << 24) | (packet[17] << 16) | (packet[18] << 8) | packet[19]  # Metric
+
+        print(f"AFI: {afi}, Must be zero (1): {must_be_zero_1}, IPv4 Address: {ipv4_address}, Must be zero (2): {must_be_zero_2}, Metric: {metric}")
+        # Validate each entry!!
+        # Go through each value and update table if needed?
+
 
     def handle_timers(self):
         current_time = time.time()
