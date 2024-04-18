@@ -36,7 +36,6 @@ def main():
         print(error)
         return
 
-    router_info = {}
     print(config_file)
     try:
         print("#####")
@@ -51,6 +50,8 @@ def main():
 
         rip_protocol = RIPProtocol(router)
         print("doneprotocol")
+        rip_protocol.print_routing_table()
+        print("done Routing table")
         
         # rip_protocol.start_listening()
        

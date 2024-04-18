@@ -15,12 +15,12 @@ class Router:
         self.metric = int(metric)
         self.state = state
 
-        print("Router ID:", self._router_id, "Type:", type(self._router_id))
-        print("Inputs:", self._inputs, "Type:", type(self._inputs))
-        print("Outputs:", self._outputs, "Type:", type(self._outputs))
-        print("Next Hop:", self.next_hop, "Type:", type(self.next_hop))
-        print("Metric:", self.metric, "Type:", type(self.metric))
-        print("State:", self.state, "Type:", type(self.state))
+        # print("Router ID:", self._router_id, "Type:", type(self._router_id))
+        # print("Inputs:", self._inputs, "Type:", type(self._inputs))
+        # print("Outputs:", self._outputs, "Type:", type(self._outputs))
+        # print("Next Hop:", self.next_hop, "Type:", type(self.next_hop))
+        # print("Metric:", self.metric, "Type:", type(self.metric))
+        # print("State:", self.state, "Type:", type(self.state))
 
     def get_router_id(self):
         return self._router_id

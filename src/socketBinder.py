@@ -8,7 +8,6 @@ class RouterInterface:
 
     def __init__(self, input_ports):
         print("socket class:", input_ports)
-        # 6000, 6001, 6002
         self.sockets = {}
         self._time_out = 1
         self._input_ports = input_ports

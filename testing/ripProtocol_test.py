@@ -5,7 +5,7 @@ import time
 from src.main import run_checks_and_get_values
 from src.ripProtocol import RIPProtocol
 from src.socketBinder import RouterInterface
-config_file = '../configFile/config1.txt'
+config_file = '../src/config1.txt'
 
 
 def router_info():
