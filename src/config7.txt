@@ -1,0 +1,3 @@
+router-id, 7
+input-ports, 5005, 5011
+outputs, 5010-6-4, 5002-8-1

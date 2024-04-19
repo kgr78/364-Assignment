@@ -1,419 +1,231 @@
-import socket
-import select
+import os
 import random
-import time
+import select
+import socket
+import sys
+import datetime
+from time import sleep
 
-from ripRoute import Router
-from socketBinder import RouterInterface
+from RoutingTable import *
+from ConfigParser import *
 
+LOCAL_HOST = "127.0.0.1"
+class ErrorHandler:
+    def __init__(self, print_logs):
+        self.print_logs = print_logs
 
-def packet_check(packet):
-    version = 2
-    if packet[0] != 2 and packet[0] != 1:
-        return False
-    if packet[1] != version:
-        return False
-    return True
-    # This needs to be changed around so that it can check the id of the router
-    # if (packet[2] << 8 | packet[3]) != 0:
-    # if packet[0] == 2:
-
-#
-TIMER_INTERVAL = 30
-
-#
-class RIPProtocol:
-    def __init__(self, router_info):
-        self.router_info = router_info
-        print(self.router_info._router_id)
-        # 1
-        self._routing_table = {}
-
-        self._routing_table[router_info._router_id] = router_info
-        for router_id, router_obj in self._routing_table.items():
-            print(f"Router ID: {router_id}")
-            print(f"Router Object: {router_obj}")
-        print(self._routing_table)
-
-        self.route = []
-        self.route.append(self.router_info)
-        self.timer_interval = TIMER_INTERVAL
-        self.timer_start = time.time()
-        # print("done1", self.route)
+    def log(self, message):
+        if self.print_logs:
+            print(message)
+class RipRouter:
+    def __init__(self, config_filename):
+        self.error_handler = ErrorHandler(print_logs=False)
+        config_parser = ConfigParser()
+        self.router = config_parser.read_config_file(config_filename)
+        self.router_id = self.router.get_router_id()
+        self.input_ports = self.router.get_input_ports()
+        self.input_sockets = self.setup_input_sockets()
+        self.routing_table = RoutingTable()
+        self.routing_table.set_router_id(self.router_id)
+        self.periodic_update_timer = datetime.datetime.now()
+   
         
-        # self.init_routing_table()
-       
-        self.print_routing_table()
-        self.routerInterface = RouterInterface(self.router_info.get_inputs())
-        #2
-        
-        
-        # send the routing table to the neighbors
-       
-        self.send_packets()
-        # print("donesent")
-        while True:
-            received_data = self.routerInterface.receive()
-            print("donesent")
-            if received_data:
-                for packet in received_data:
-                    self.process_packet(packet)
-            # go through the value of timer and update if needed
-            self.print_routing_table()
+    def setup_input_sockets(self):
+        sockets = []
+        for port in self.input_ports:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.bind((LOCAL_HOST, port))
+            sockets.append(sock)
+        return sockets
+
+    def create_rip_packet(self):
+        packet = bytearray(4)
+        header_command = 0x02
+        header_version = 0x02
+        packet[0] = header_command
+        packet[1] = header_version
+
+        packet[2] = self.router_id >> 8
+        packet[3] = (self.router_id & 0x00FF)
+
+        for route in self.routing_table.routes:
+            rip_entry = bytearray(20)
+            if 0 < route.destination < 64001:
+                rip_entry[4] = route.destination >> 24
+                rip_entry[5] = (route.destination & 0x00FF0000) >> 16
+                rip_entry[6] = (route.destination & 0x0000FF00) >> 8
+                rip_entry[7] = (route.destination & 0x000000FF)
+            else:
+                self.error_handler.log(f"Error: Invalid destination value, destination: {route.destination}")
+                continue
+
+            metric = route.metric
+            if 0 < metric < 17:
+                rip_entry[16] = metric >> 24
+                rip_entry[17] = (metric & 0x00FF0000) >> 16
+                rip_entry[18] = (metric & 0x0000FF00) >> 8
+                rip_entry[19] = (metric & 0x000000FF)
+            else:
+                self.error_handler.log(f"Error: Invalid metric value, metric: {metric}")
+                continue
+
+            packet.extend(rip_entry)
+
+        return packet
+    def send_rip_packets(self):
+        message = self.create_rip_packet()
+        send_socket = self.input_sockets[0]
+        for port in self.router.get_outputs():
+            try:
+                send_socket.sendto(message, (LOCAL_HOST, port))
+            except socket.error as e:
+                self.error_handler.log(f"Error occurred while sending RIP packet to port {port}: {e}")
+    def close_input_sockets(self):
+        for socket in self.input_sockets:
+            socket.close()
+        self.input_sockets.clear()
+
+    def receive_packets(self):
+        timeout = 1
+        readable_sockets, _, _ = select.select(self.input_sockets, [], [], timeout)
+
+        for socket in readable_sockets:
+            data, _ = socket.recvfrom(1024)
+            self.process_received_packet(data)
+
+    def process_received_packet(self, data):
+        routing_table_updated = False
+
+        rip_header = data[:4]
+        rip_data = data[4:]
+        command = rip_header[0]
+        version = rip_header[1]
+        next_hop_router_id = int.from_bytes(rip_header[2:], "big")
+
+        if command != 2:
+            self.error_handler.log(f"Error: Command is invalid , command:{command}")
+            return
+        if version != 2:
+            self.error_handler.log(f"Error: Version is invalid, version:{version}")
+            return
+        if not (0 < next_hop_router_id < 64001):
+            self.error_handler.log("Error: Router id is invalid, router id:{next_hop_router_id}")
+            return
+        if not self.router.is_router_in_outputs(next_hop_router_id):
+            self.error_handler.log(f"Dropping packet: Router id not in outputs, router id:{next_hop_router_id}")
+            return
+
+
+        output = self.router.get_output_by_router_id(next_hop_router_id)
+        if not self.routing_table.is_route_known(next_hop_router_id):
+            self.routing_table.add_route(next_hop_router_id, next_hop_router_id, output["metric"])
+            self.error_handler.log("is_route_known == False")
+            routing_table_updated = True
+        else:
+            route = self.routing_table.get_route_id_by_id(next_hop_router_id)
+            if output["metric"] < route.metric:
+                route.update_route(next_hop_router_id, next_hop_router_id, output["metric"])
+                routing_table_updated = True
+            if route.next_hop == next_hop_router_id:
+                route.reset_timers()
             
-      
-        
+        routes = []
+     
+        for i in range(0, int(len(rip_data)), 20):
+            routes.append(rip_data[i:i + 20])
 
-    # def send_packets(self):
-    #
-    #     try:
-    #         ports = self.router_info.get_outputs()
-    #         print(f"Ports:111111 {ports}", ports)
-    #
-    #         for port,metric,_ in ports:
-    #             byte_data =  self.create_entry_packet(port, metric)
-    #             print("sending on port", port)
-    #             self.routerinterface.send(byte_data, port)
-    #
-    #         for port in self.router_info.get_outputs():
-    #             print("sending on port", port)
-    #     except ValueError as error:
-    #         print(error)
+        for route in routes:
+            afi = int.from_bytes(route[:2], 'big')
+            if afi != 0:
+                self.error_handler.log(f"Error: afi is invalid, afi:{afi}")
 
-    def send_packets(self):
-        try:
-            for port, metric, _ in self.router_info.get_outputs():
-                byte_data = self.create_entry_packet(port, metric)
-                self.routerInterface.send(byte_data, port)
-      
-        except ValueError as error:
-            print(error)
-    def listen_for_packets(self):
-        while True:
-            received_data = self.routerInterface.receive()
-            self.process_packet(received_data)
+            router_id = int.from_bytes(route[4:8], 'big')
+            self.error_handler.log(f"Route router id: {router_id}")
+            if not (0 < router_id < 64001):
+                self.error_handler.log("Discarding route: Incoming route router id is invalid")
+                continue
+            if router_id == self.router_id:
+                # contain self route
+                self.error_handler.log("Error: Drop packet")
+                continue
+
+            output = self.router.get_output_by_router_id(next_hop_router_id)
+            metric = int.from_bytes(route[16:], 'big')
+            route_object = self.routing_table.get_route_id_by_id(router_id)
     
 
-    # def test_recieve(self):
-    #         data = self.routerinterface.receive()
-    #         print(data)
-    # def init_routing_table(self):
-    #     for router_id, router_data in self.router_info.items():
-    #         outputs = router_data['outputs']
-    #         for output_port, metric, dest_router_id in outputs:
-    #             route = Router(dest_router_id, [], [])  # Initialize router objects
-    #             self._routing_table[output_port] = route
-
-    def print_routing_table(self):
-        print(f"Router ID: {self.router_info.get_router_id()}")
-
-        # Debugging print statements
-        next_hop = self.router_info.get_next_hop()
-        print("Next Hop:", next_hop)
-
-        metric = self.router_info.get_metric()
-        print("Metric:", metric)
-
-        deletion_timer = self.router_info.get_deletion_timer()
-        print("Deletion Timer:", deletion_timer)
-
-        garbage_timer = self.router_info.get_garbage_timer()
-        print("Garbage Timer:", garbage_timer)
-
-        state = self.router_info.get_state()
-        print("State:", state)
-
-        table = [
-            f"+----------------+----------------+----{self.router_info.get_router_id()}------------+----------------+----------------+",
-             "+----------------+----------------+----------------+----------------+----------------+----------------+",
-             "| Destination    | Next Hop       | Metric         | Deletion Timer | Garbage Timer  | State          |",
-             "+----------------+----------------+----------------+----------------+----------------+----------------"
-        ]
-
-        # Handle the case where garbage_timer is None
-        if garbage_timer is None:
-            garbage_timer_str = "N/A"
-        else:
-            garbage_timer_str = str(garbage_timer)
-
-        # Append data to the table
-        table.append("| {0:<14} | {1:<14} | {2:<14} | {3:<14} | {4:<14} | {5:<14} |".format(
-            "destination_value", "N/A" if next_hop is None else next_hop, metric, deletion_timer, garbage_timer_str, state))
-
-        table.append("+----------------+----------------+----------------+----------------+----------------+")
-
-        for row in table:
-            print(row)
-
-    def create_entry_packet(self, router_id, metric):
-        address_family = 2
-        entryPacket = bytearray([(address_family >> 8), (address_family & 0xFF), (0 >> 8), (0 & 0xFF), (router_id >> 24),
-                                 ((router_id >> 16) & 0x00FF), ((router_id & 0xFFFF) >> 8), (router_id & 0xFF),
-                                 (0 >> 24), ((0 >> 16) & 0x00FF), ((0 & 0xFFFF) >> 8), (0 & 0xFF),
-                                 (0 >> 24), ((0 >> 16) & 0x00FF), ((0 & 0xFFFF) >> 8), (0 & 0xFF),
-                                 (metric >> 24), ((metric >> 16) & 0x00FF), ((metric & 0xFFFF) >> 8), (metric & 0xFF)])
-        return entryPacket
-
-    def create_packet(self, router_id, command, entries):
-        version = 2
-        packet = bytearray([command, version, (router_id >> 8), (router_id & 0xFF)])
-        if command == 2:
-            packet.extend(entries)
-        return packet
-
-    def init_routing_table(self):
-        for router_id, router_data in self.router_info.items():
-            outputs = router_data['outputs']
-            for output_port, metric, dest_router_id in outputs:
-                self._routing_table[output_port] = {
-                    'next': dest_router_id,
-                    'timeout': None,
-                    'state': 'active'
-                }
-
-    def update_routing_table(self, packet):
-        command = packet[0]
-        version = packet[1]
-        router_id = (packet[2] << 8) | packet[3]
-
-        if command == 2 and version == 2:
-            entries = packet[4:]
-            for i in range(0, len(entries), 20):
-                dest_router_id = (entries[i] << 24) | (entries[i + 1] << 16) | (entries[i + 2] << 8) | entries[i + 3]
-                metric = (entries[i + 16] << 24) | (entries[i + 17] << 16) | (entries[i + 18] << 8) | entries[i + 19]
-
-                # Check if the destination router ID already exists in the routing table
-                if dest_router_id in self._routing_table:
-                    existing_entry = self._routing_table[dest_router_id]
-                    existing_metric = existing_entry['metric']
-
-                    # Handle metric 16 (route not usable)
+            if (not (0 < (metric + output["metric"]) < 17)) and metric != 16:
+                self.error_handler.log(f"Error: metric out of bound, metric:{metric}")
+                continue
+            
+            
+            if route_object:
+                if route_object.next_hop == next_hop_router_id:
                     if metric == 16:
-                        if existing_metric != 16:
-                            # Mark the route as invalid if it wasn't already
-                            existing_entry['metric'] = 16
-                            existing_entry['state'] = 'invalid'
-                            print(f"Route to {dest_router_id} marked as invalid due to metric 16.")
+                        if route_object.garbage_timer == None:
+                            route_object.mark_for_deletion()
+                            routing_table_updated = True
+                        continue
+                    elif route_object.metric != metric + output["metric"]:
+                        routing_table_updated = True
                     else:
-                        # Update the routing table only if the new metric is better (lower) or if it's invalid (16)
-                        if metric < existing_metric or existing_metric == 16:
-                            existing_entry['next_hop'] = router_id
-                            existing_entry['metric'] = min(metric, 15)  # Cap the metric at 15
-                            existing_entry['state'] = 'active'
-                            print(f"Route to {dest_router_id} updated with metric {metric} via {router_id}.")
+                        route_object.reset_timers()
                 else:
-                    # Add a new entry to the routing table for the destination router
-                    self._routing_table[dest_router_id] = {
-                        'next_hop': router_id,
-                        'metric': min(metric, 15),
-                        'state': 'active'
-                    }
-                    print(f"Added new route to {dest_router_id} with metric {metric} via {router_id}.")
+                    if metric + output["metric"] < route_object.metric:
+                        route_object.update_route(route_object.destination, next_hop_router_id, metric + output["metric"])
+            
+                        routing_table_updated = True
+            elif metric < 16:
+                self.routing_table.add_route(router_id, next_hop_router_id, metric + output["metric"])
+               
+                routing_table_updated = True
+         
+        
+        if routing_table_updated:
+            self.send_rip_packets()
+    
+    def get_update_timer_duration(self):
+        return (datetime.datetime.now() - self.periodic_update_timer).seconds
+    
+    def reset_periodic_update_timer(self):
+        self.periodic_update_timer = datetime.datetime.now()
 
-            # After updating, print the new routing table
-            self.print_routing_table()
+    def check_timeout_entries_periodically(self):
+        random_offset_period = 13 + random.randrange(-5, 5)
+        if self.get_update_timer_duration() > random_offset_period:
 
-    def start_listening(self):
-        while True:
-            input_ports = self.router_info.get_inputs()
-            print(f"Listening on ports: {input_ports}")
-            for input_port in input_ports:
-                    self.receive_data(input_port)
-            print("donnnnne")
+            self.send_rip_packets()
+            self.reset_periodic_update_timer()
+    
+    def check_route_timers(self):
+        if self.routing_table.check_route_timers():
+            self.send_rip_packets()
 
-    def format_routing_entries(self):
-        entries = []
-        for dest_router_id, route_data in self._routing_table.items():
-            entry_data = self.create_entry_packet(dest_router_id, route_data['metric'])
-            entries.extend(entry_data)
-        return entries
+    # def print_routing_table(self):
+        
+    #     self.routing_table.print_table()
 
-    def process_packet(self, packet):
-        print(f"data:", packet)
-        command = packet[0]
-        version = packet[1]
-        router_id = (packet[2] << 8) | packet[3]
-        print(f"command: {command}, version: {version}, router_id: {router_id}")
-        rip_entry = packet[4:]
-        # for i in range(4, len(packet)+1):
-        afi = (packet[4] << 8) | packet[5]  # Address Family Identifier
-        must_be_zero_1 = (packet[6] << 8) | packet[7]  # Must be zero
-        ipv4_address = ".".join(map(str, packet[8:12]))  # IPv4 Address
-        must_be_zero_2 = (packet[12] << 24) | (packet[13] << 16) | (packet[14] << 8) | packet[15]  # Must be zero
-        metric = (packet[16] << 24) | (packet[17] << 16) | (packet[18] << 8) | packet[19]  # Metric
+    def rip_protocol(self):
+        
+        self.send_rip_packets()
+      
+        while(1):
+            self.routing_table.print_table()
+            self.receive_packets()
+            self.check_timeout_entries_periodically()
+            self.check_route_timers()
+            sleep(1)
 
-        print(f"AFI: {afi}, Must be zero (1): {must_be_zero_1}, IPv4 Address: {ipv4_address}, Must be zero (2): {must_be_zero_2}, Metric: {metric}")
-        # Validate each entry!!
-        # Go through each value and update table if needed?
+def main(config_filename):
+    try:
+        router = RipRouter(config_filename)
+        router.rip_protocol()
+    except Exception as exception:
+            print(exception)
 
-
-    def handle_timers(self):
-        current_time = time.time()
-        if current_time - self.timer_start >= self.timer_interval:
-            self.send_packets()  # Send packets every 30 seconds
-            self.timer_start = current_time
-            self.print_routing_table()  # Print the routing table after updating
-
-
-# import socket
-# import select
-# import random
-# import time
-
-# from ripRoute import Router
-# from socketBinder import RouterInterface
-
-
-# def packet_check(packet):
-#     version = 2
-#     if packet[0] != 2 and packet[0] != 1:
-#         return False
-#     if packet[1] != version:
-#         return False
-#     # Add more checks as needed
-#     return True
-
-
-# TIMER_INTERVAL = 30
-
-
-# class RIPProtocol:
-#     def __init__(self, router_info):
-#         self.router_info = router_info
-#         self._routing_table = {}
-#         self.timer_interval = TIMER_INTERVAL
-#         self.timer_start = time.time()
-#         self.routerInterface = RouterInterface(self.router_info.get_inputs())
-#         self.send_packets()  # Send initial routing table
-#         self.print_routing_table()
-#         self.count = 0
-#         while True:
-#             print(self.count)
-#             self.listen_for_packets()  # Start listening for incoming packets
-#             print(self.count)
-#             self.print_routing_table()
-#             print(self.count)
-#             self.count += 1
-#             self.handle_timers()
-
-#     def send_packets(self):
-#         try:
-#             for port, metric, _ in self.router_info.get_outputs():
-#                 byte_data = self.create_entry_packet(port, metric)
-#                 self.routerInterface.send(byte_data, port)
-#         except ValueError as error:
-#             print(error)
-
-#     def listen_for_packets(self):
-#         while True:
-#             received_data = self.routerInterface.receive()
-#             if received_data:
-#                 for packet in received_data:
-#                     self.process_packet(packet)
-
-#     def create_entry_packet(self, router_id, metric):
-#         address_family = 2
-#         entryPacket = bytearray([(address_family >> 8), (address_family & 0xFF), (0 >> 8), (0 & 0xFF), (router_id >> 24),
-#                                  ((router_id >> 16) & 0x00FF), ((router_id & 0xFFFF) >> 8), (router_id & 0xFF),
-#                                  (0 >> 24), ((0 >> 16) & 0x00FF), ((0 & 0xFFFF) >> 8), (0 & 0xFF),
-#                                  (0 >> 24), ((0 >> 16) & 0x00FF), ((0 & 0xFFFF) >> 8), (0 & 0xFF),
-#                                  (metric >> 24), ((metric >> 16) & 0x00FF), ((metric & 0xFFFF) >> 8), (metric & 0xFF)])
-#         return entryPacket
-
-#     def update_routing_table(self, packet):
-#         command = packet[0]
-#         version = packet[1]
-#         router_id = (packet[2] << 8) | packet[3]
-
-#         if command == 2 and version == 2:
-#             entries = packet[4:]
-#             for i in range(0, len(entries), 20):
-#                 dest_router_id = (entries[i] << 24) | (entries[i + 1] << 16) | (entries[i + 2] << 8) | entries[i + 3]
-#                 metric = (entries[i + 16] << 24) | (entries[i + 17] << 16) | (entries[i + 18] << 8) | entries[i + 19]
-
-#                 if dest_router_id in self._routing_table:
-#                     existing_metric = self._routing_table[dest_router_id]['metric']
-#                     if metric == 16:
-#                         if existing_metric != 16:
-#                             self._routing_table[dest_router_id]['metric'] = 16
-#                             self._routing_table[dest_router_id]['state'] = 'invalid'
-#                             print(f"Route to {dest_router_id} marked as invalid due to metric 16.")
-#                     else:
-#                         if metric < existing_metric or existing_metric == 16:
-#                             self._routing_table[dest_router_id]['next_hop'] = router_id
-#                             self._routing_table[dest_router_id]['metric'] = min(metric, 15)
-#                             self._routing_table[dest_router_id]['state'] = 'active'
-#                             print(f"Route to {dest_router_id} updated with metric {metric} via {router_id}.")
-#                 else:
-#                     self._routing_table[dest_router_id] = {
-#                         'next_hop': router_id,
-#                         'metric': min(metric, 15),
-#                         'state': 'active'
-#                     }
-
-#     def process_packet(self, packet):
-#         command = packet[0]
-#         if packet_check(packet) is False:
-#             print("Packet failed the packet check")
-#             return
-#         else:
-#             if command == 1:
-#                 # Process triggered updates or responses
-#                 self.update_routing_table(packet)
-#             elif command == 2:
-#                 # Process periodic updates
-#                 self.update_routing_table(packet)
-
-#     def handle_timers(self):
-#         current_time = time.time()
-#         if current_time - self.timer_start >= self.timer_interval:
-#             self.send_packets()  # Send packets every 30 seconds
-#             self.timer_start = current_time
-#             self.print_routing_table()  # Print the routing table after updating
-
-#     # def print_routing_table(self):
-#     #     print("Current Routing Table:")
-#     #     for dest_router_id, route_data in self._routing_table.items():
-#     #         print(f"Destination: {dest_router_id}, Next Hop: {route_data['next_hop']}, Metric: {route_data['metric']}, State: {route_data['state']}")
-
-#     def print_routing_table(self):
-#         print(f"Router ID: {self.router_info.get_router_id()}")
-
-#         # Debugging print statements
-#         next_hop = self.router_info.get_next_hop()
-#         print("Next Hop:", next_hop)
-
-#         metric = self.router_info.get_metric()
-#         print("Metric:", metric)
-
-#         deletion_timer = self.router_info.get_deletion_timer()
-#         print("Deletion Timer:", deletion_timer)
-
-#         garbage_timer = self.router_info.get_garbage_timer()
-#         print("Garbage Timer:", garbage_timer)
-
-#         state = self.router_info.get_state()
-#         print("State:", state)
-
-#         print(self._routing_table)
-        # table = [
-        #     f"+----------------+----------------+----{self.router_info.get_router_id()}------------+----------------+----------------+",
-        #      "+----------------+----------------+----------------+----------------+----------------+----------------+",
-        #      "| Destination    | Next Hop       | Metric         | Deletion Timer | Garbage Timer  | State          |",
-        #      "+----------------+----------------+----------------+----------------+----------------+----------------"
-        # ]
-
-        # # Handle the case where garbage_timer is None
-        # if garbage_timer is None:
-        #     garbage_timer_str = "N/A"
-        # else:
-        #     garbage_timer_str = str(garbage_timer)
-
-        # # Append data to the table
-        # table.append("| {0:<14} | {1:<14} | {2:<14} | {3:<14} | {4:<14} | {5:<14} |".format(
-        #     "destination_value", "N/A" if next_hop is None else next_hop, metric, deletion_timer, garbage_timer_str, state))
-
-        # table.append("+----------------+----------------+----------------+----------------+----------------+")
-
-        # for row in table:
-        #     print(row)
+if __name__=="__main__":
+    if len(sys.argv) != 2:
+        print("Error: Invalid number of arguments, usage: python3 RipProtocol.py <config_filename>")
+    else:
+        config_filename = sys.argv[1]
+        main(config_filename)
