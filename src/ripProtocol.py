@@ -24,12 +24,14 @@ class RipRouter:
         self.router = config_parser.read_config_file(config_filename)
         self.router_id = self.router.get_router_id()
         self.input_ports = self.router.get_input_ports()
+        self.output_ports = self.router.get_outputs()
         self.input_sockets = self.setup_input_sockets()
         self.routing_table = RoutingTable()
         self.routing_table.set_router_id(self.router_id)
         self.periodic_update_timer = datetime.datetime.now()
    
-        
+    def get_outputs(self):
+        return self.output_ports
     def setup_input_sockets(self):
         sockets = []
         for port in self.input_ports:
@@ -50,28 +52,29 @@ class RipRouter:
 
         for route in self.routing_table.routes:
             rip_entry = bytearray(20)
-            if 0 < route.destination < 64001:
+
+            # Check if the destination is valid
+            if route.destination < 1 or route.destination > 64000:
+                self.error_handler.log(f"Error: Invalid destination value, destination: {route.destination}")
+            else:
                 rip_entry[4] = route.destination >> 24
                 rip_entry[5] = (route.destination & 0x00FF0000) >> 16
                 rip_entry[6] = (route.destination & 0x0000FF00) >> 8
                 rip_entry[7] = (route.destination & 0x000000FF)
-            else:
-                self.error_handler.log(f"Error: Invalid destination value, destination: {route.destination}")
-                continue
 
-            metric = route.metric
-            if 0 < metric < 17:
-                rip_entry[16] = metric >> 24
-                rip_entry[17] = (metric & 0x00FF0000) >> 16
-                rip_entry[18] = (metric & 0x0000FF00) >> 8
-                rip_entry[19] = (metric & 0x000000FF)
+            # Check if the metric is valid
+            if route.metric < 1 or route.metric > 16:
+                self.error_handler.log(f"Error: Invalid metric value, metric: {route.metric}")
             else:
-                self.error_handler.log(f"Error: Invalid metric value, metric: {metric}")
-                continue
+                rip_entry[16] = route.metric >> 24
+                rip_entry[17] = (route.metric & 0x00FF0000) >> 16
+                rip_entry[18] = (route.metric & 0x0000FF00) >> 8
+                rip_entry[19] = (route.metric & 0x000000FF)
 
             packet.extend(rip_entry)
 
         return packet
+
     def send_rip_packets(self):
         message = self.create_rip_packet()
         send_socket = self.input_sockets[0]
@@ -103,18 +106,17 @@ class RipRouter:
         next_hop_router_id = int.from_bytes(rip_header[2:], "big")
 
         if command != 2:
-            self.error_handler.log(f"Error: Command is invalid , command:{command}")
+            self.error_handler.log(f"Error: Command is invalid, command:{command}")
             return
         if version != 2:
             self.error_handler.log(f"Error: Version is invalid, version:{version}")
             return
         if not (0 < next_hop_router_id < 64001):
-            self.error_handler.log("Error: Router id is invalid, router id:{next_hop_router_id}")
+            self.error_handler.log(f"Error: Router id is invalid, router id:{next_hop_router_id}")
             return
         if not self.router.is_router_in_outputs(next_hop_router_id):
             self.error_handler.log(f"Dropping packet: Router id not in outputs, router id:{next_hop_router_id}")
             return
-
 
         output = self.router.get_output_by_router_id(next_hop_router_id)
         if not self.routing_table.is_route_known(next_hop_router_id):
@@ -128,9 +130,9 @@ class RipRouter:
                 routing_table_updated = True
             if route.next_hop == next_hop_router_id:
                 route.reset_timers()
-            
+
         routes = []
-     
+
         for i in range(0, int(len(rip_data)), 20):
             routes.append(rip_data[i:i + 20])
 
@@ -138,51 +140,40 @@ class RipRouter:
             afi = int.from_bytes(route[:2], 'big')
             if afi != 0:
                 self.error_handler.log(f"Error: afi is invalid, afi:{afi}")
+            else:
+                router_id = int.from_bytes(route[4:8], 'big')
+                self.error_handler.log(f"Route router id: {router_id}")
+                if 0 < router_id < 64001:
+                    if router_id != self.router_id:
+                        output = self.router.get_output_by_router_id(next_hop_router_id)
+                        metric = int.from_bytes(route[16:], 'big')
+                        route_object = self.routing_table.get_route_id_by_id(router_id)
 
-            router_id = int.from_bytes(route[4:8], 'big')
-            self.error_handler.log(f"Route router id: {router_id}")
-            if not (0 < router_id < 64001):
-                self.error_handler.log("Discarding route: Incoming route router id is invalid")
-                continue
-            if router_id == self.router_id:
-                # contain self route
-                self.error_handler.log("Error: Drop packet")
-                continue
+                        if (0 < (metric + output["metric"]) < 17) or metric == 16:
+                            if route_object:
+                                if route_object.next_hop == next_hop_router_id:
+                                    if metric == 16:
+                                        if route_object.garbage_timer is None:
+                                            route_object.mark_for_deletion()
+                                            routing_table_updated = True
+                                    elif route_object.metric != metric + output["metric"]:
+                                        routing_table_updated = True
+                                    else:
+                                        route_object.reset_timers()
+                                elif metric + output["metric"] < route_object.metric:
+                                    route_object.update_route(route_object.destination, next_hop_router_id,
+                                                            metric + output["metric"])
+                                    routing_table_updated = True
+                            elif metric < 16:
+                                self.routing_table.add_route(router_id, next_hop_router_id,
+                                                            metric + output["metric"])
+                                routing_table_updated = True
+                        else:
+                            self.error_handler.log(f"Error: metric out of bound, metric:{metric}")
 
-            output = self.router.get_output_by_router_id(next_hop_router_id)
-            metric = int.from_bytes(route[16:], 'big')
-            route_object = self.routing_table.get_route_id_by_id(router_id)
-    
-
-            if (not (0 < (metric + output["metric"]) < 17)) and metric != 16:
-                self.error_handler.log(f"Error: metric out of bound, metric:{metric}")
-                continue
-            
-            
-            if route_object:
-                if route_object.next_hop == next_hop_router_id:
-                    if metric == 16:
-                        if route_object.garbage_timer == None:
-                            route_object.mark_for_deletion()
-                            routing_table_updated = True
-                        continue
-                    elif route_object.metric != metric + output["metric"]:
-                        routing_table_updated = True
-                    else:
-                        route_object.reset_timers()
-                else:
-                    if metric + output["metric"] < route_object.metric:
-                        route_object.update_route(route_object.destination, next_hop_router_id, metric + output["metric"])
-            
-                        routing_table_updated = True
-            elif metric < 16:
-                self.routing_table.add_route(router_id, next_hop_router_id, metric + output["metric"])
-               
-                routing_table_updated = True
-         
-        
         if routing_table_updated:
             self.send_rip_packets()
+
     
     def get_update_timer_duration(self):
         return (datetime.datetime.now() - self.periodic_update_timer).seconds
@@ -200,10 +191,6 @@ class RipRouter:
     def check_route_timers(self):
         if self.routing_table.check_route_timers():
             self.send_rip_packets()
-
-    # def print_routing_table(self):
-        
-    #     self.routing_table.print_table()
 
     def rip_protocol(self):
         

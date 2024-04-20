@@ -32,7 +32,7 @@ class ConfigParser:
                     raise ValueError(f"At line {line_num}, the input port number is invalid. Port {port_index} must be between 1024 and 64000.")
                 if port in self.router.get_input_ports():
                     raise ValueError(f"At line {line_num}, a duplicate input port number is found. Port {port_index} is repeated.")
-                self.router.add_input_port(port)
+                self.router.add_input_port(port)    
   
         except ValueError:
             raise ValueError(f"At line {line_num}, the input port number is invalid. Port {port_index} must be an integer.")
@@ -80,4 +80,24 @@ class ConfigParser:
             else:
                 raise ValueError(f"At line {line_num}, the header '{header[0]}' is invalid.")
        
+        return self.router
+    def read_config_data(self, config_data):
+        parse_config = []
+        for line_num, line in enumerate(config_data, start=1):
+            line = line.strip()
+            if line:
+                parse_config.append((line.split(', '), line_num))
+
+        self.validate_config(parse_config)
+
+        for header, line_num in parse_config:
+            if header[0] == 'router-id':
+                self.validate_router_id(header, line_num)
+            elif header[0] == 'input-ports':
+                self.validate_input_ports(header, line_num)
+            elif header[0] == 'outputs':
+                self.validate_output_links(header, line_num)
+            else:
+                raise ValueError(f"At line {line_num}, the header '{header[0]}' is invalid.")
+
         return self.router

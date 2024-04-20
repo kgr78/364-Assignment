@@ -30,7 +30,6 @@ class Router:
                 return output
 
     def get_outputs(self):
-       
         return [output['port'] for output in self.outputs]
 
     def is_router_in_outputs(self, router_id):
