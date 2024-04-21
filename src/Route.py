@@ -35,7 +35,6 @@ class Route:
         self.garbage_timer = None
 
     def mark_for_deletion(self):
-    
         self.deletion_timer = None
         self.garbage_timer = datetime.datetime.now()
         self.metric = 16

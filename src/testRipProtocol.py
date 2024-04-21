@@ -1,6 +1,6 @@
 import unittest
 from ConfigParser import ConfigParser
-from RipProtocol import RipRouter
+from ripProtocol import RipRouter
 
 
 class TestRipRouter(unittest.TestCase):
