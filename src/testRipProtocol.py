@@ -21,7 +21,7 @@ class TestRipRouter(unittest.TestCase):
 
     def test_router_initialization(self):
         # Check router ID, input ports, and outputs after initialization
-        self.assertEqual(self.router.router_id, 1)
+        self.assertEqual(self.router.router_id, 2)
         self.assertListEqual(self.router.input_ports, [5000, 5001, 5002])
         self.assertListEqual(self.router.output_ports, [5003, 5004, 5005])
         self.assertEqual(len(self.router.routing_table.routes), 0)

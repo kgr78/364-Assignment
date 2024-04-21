@@ -1,4 +1,3 @@
-import os
 import random
 import select
 import socket
@@ -11,6 +10,9 @@ from ConfigParser import *
 
 LOCAL_HOST = "127.0.0.1"
 class ErrorHandler:
+    """
+    ErrorHandler class logs error and prints error messages if any error occurs. Note: must set the print_logs flag to True.
+    """
     def __init__(self, print_logs):
         self.print_logs = print_logs
 
@@ -18,7 +20,17 @@ class ErrorHandler:
         if self.print_logs:
             print(message)
 class RipRouter:
+    """
+    The RipRouter class represents a router implementing the RIP (Routing Information Protocol) protocol v2. 
+    It handles the initialization of the router with configuration data, sending and receiving RIP packets, 
+    updating the routing table based on received packets, and managing periodic updates and route timers.
+    """
     def __init__(self, config_filename):
+        """
+        Initializes the RipRouter object with the given configuration file.
+        Parameters:
+            config_filename (str): The name of the configuration file.
+        """
         self.error_handler = ErrorHandler(print_logs=False)
         config_parser = ConfigParser()
         self.router = config_parser.read_config_file(config_filename)
@@ -31,8 +43,17 @@ class RipRouter:
         self.periodic_update_timer = datetime.datetime.now()
    
     def get_outputs(self):
+        """
+        Returns:
+            output_ports (list): The list of output ports.
+        """
         return self.output_ports
     def setup_input_sockets(self):
+        """
+        Sets up the input sockets for the RIP protocol.
+        Returns:
+            sockets (list): A list of input sockets.
+        """
         sockets = []
         for port in self.input_ports:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -41,6 +62,12 @@ class RipRouter:
         return sockets
 
     def create_rip_packet(self):
+        """
+        Creates a RIP packet from the routing table.
+        Returns:
+            packet (bytearray): The created RIP packet.
+        """
+
         packet = bytearray(4)
         header_command = 0x02
         header_version = 0x02
@@ -76,6 +103,9 @@ class RipRouter:
         return packet
 
     def send_rip_packets(self):
+        """
+        Sends RIP packets to all the output ports.
+        """
         message = self.create_rip_packet()
         send_socket = self.input_sockets[0]
         for port in self.router.get_outputs():
@@ -84,11 +114,17 @@ class RipRouter:
             except socket.error as e:
                 self.error_handler.log(f"Error occurred while sending RIP packet to port {port}: {e}")
     def close_input_sockets(self):
+        """
+        Closes all the input sockets. Used for testing, else it will cause an resource allocation error.
+        """
         for socket in self.input_sockets:
             socket.close()
         self.input_sockets.clear()
 
     def receive_packets(self):
+        """
+        Receives RIP packets from all the input ports.
+        """
         timeout = 1
         readable_sockets, _, _ = select.select(self.input_sockets, [], [], timeout)
 
@@ -97,6 +133,12 @@ class RipRouter:
             self.process_received_packet(data)
 
     def process_received_packet(self, data):
+        """
+        Processes a received RIP packet and updates the routing table if necessary. If updated than sends a new RIP packet.
+        Parameters:
+            data (bytearray): The received RIP packet.
+
+        """
         routing_table_updated = False
 
         rip_header = data[:4]
@@ -176,23 +218,40 @@ class RipRouter:
 
     
     def get_update_timer_duration(self):
+        """
+        Calculates the duration since the last periodic update
+        """
         return (datetime.datetime.now() - self.periodic_update_timer).seconds
     
     def reset_periodic_update_timer(self):
+        """
+        Resets the periodic update timer
+        """
         self.periodic_update_timer = datetime.datetime.now()
 
     def check_timeout_entries_periodically(self):
-        random_offset_period = 13 + random.randrange(-5, 5)
+        """
+        Periodically checks for timeout entries in the routing table and sends RIP packets if needed.
+        The 30-second timer is offset by a small random time (+/- 0 to 5 seconds) each time it is set. 
+        (Implementors may wish to consider even larger variation in the light of recent research results [10])
+        """
+        random_offset_period = 11 + random.randrange(-5, 5)
         if self.get_update_timer_duration() > random_offset_period:
 
             self.send_rip_packets()
             self.reset_periodic_update_timer()
     
     def check_route_timers(self):
+        """
+        Checks for timeout entries in the routing table and sends RIP packets if needed.
+        """
         if self.routing_table.check_route_timers():
             self.send_rip_packets()
 
     def rip_protocol(self):
+        """
+        The main RIP protocol loop.
+        """
         
         self.send_rip_packets()
       

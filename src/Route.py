@@ -11,7 +11,7 @@ class Route:
         self.metric = metric
         self.deletion_timer = datetime.datetime.now()
         self.garbage_timer = None
-        self.timer_limit = 30 
+        self.timer_limit = 30 # from 
         self.router_id = None
     
     def set_router_id(self, router_id):

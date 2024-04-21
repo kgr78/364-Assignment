@@ -1,3 +1,4 @@
+import os
 from Route import *
 
 class RoutingTable:
@@ -21,6 +22,10 @@ class RoutingTable:
                 state = "Active"
             table.append("| {0:<15} | {1:<15} | {2:<15} | {3:<15} | {4:<15} | {5:<15} |".format(route.destination, route.next_hop, route.metric, route.get_deletion_timer(), route.get_garbage_timer(), state))
         table.append("+-----------------+-----------------+-----------------+-----------------+-----------------+-----------------+")
+        if os.name == 'nt':  # Windows
+            os.system('cls')
+        else:  # Linux or macOS
+            os.system('clear')
         print("\n".join(table))
     
     def set_router_id(self, router_id):

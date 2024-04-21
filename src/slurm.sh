@@ -4,7 +4,7 @@
 cd /Users/isma/Desktop/COSC364/RIPAssignment/364-Assignment/src
 
 # Array of config files
-CONFIG_FILES=("config1.txt" "config2.txt" "config3.txt" "config4.txt" "config7.txt")
+CONFIG_FILES=("config1.txt" "config2.txt" "config3.txt" "config4.txt" "config5.txt" "config6.txt" "config7.txt")
 
 # Path to your Python script
 PYTHON_SCRIPT="RipProtocol.py"
